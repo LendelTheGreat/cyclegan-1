@@ -25,7 +25,7 @@ class CycleGAN:
         current_time = datetime.now().strftime("%Y%m%d-%H%M%S")
 
         self._pool_size = pool_size
-        self._size_before_crop = 286
+        self._size_before_crop = 256
         self._lambda_a = lambda_a
         self._lambda_b = lambda_b
         self._output_dir = os.path.join(output_root_dir, current_time)
@@ -119,6 +119,11 @@ class CycleGAN:
 
         self.prob_fake_pool_a_is_real = outputs['prob_fake_pool_a_is_real']
         self.prob_fake_pool_b_is_real = outputs['prob_fake_pool_b_is_real']
+        
+        self.gp_images_a = outputs['gp_images_a']
+        self.gp_images_b = outputs['gp_images_b']
+        self.prob_gp_a_is_real = outputs['prob_gp_a_is_real']
+        self.prob_gp_b_is_real = outputs['prob_gp_b_is_real']
 
     def compute_losses(self):
         """
@@ -147,15 +152,27 @@ class CycleGAN:
         g_loss_B = \
             cycle_consistency_loss_b + cycle_consistency_loss_a + lsgan_loss_a
 
-        d_loss_A = losses.lsgan_loss_discriminator(
+        d_vanilla_loss_A = losses.lsgan_loss_discriminator(
             prob_real_is_real=self.prob_real_a_is_real,
             prob_fake_is_real=self.prob_fake_pool_a_is_real,
         )
-        d_loss_B = losses.lsgan_loss_discriminator(
+        d_vanilla_loss_B = losses.lsgan_loss_discriminator(
             prob_real_is_real=self.prob_real_b_is_real,
             prob_fake_is_real=self.prob_fake_pool_b_is_real,
         )
-
+        
+        d_gp_A = losses.wgan_gp_discriminator(
+            mixed_image = self.gp_images_a,
+            prob_mixed_is_real = self.prob_gp_a_is_real
+        )
+        d_gp_B = losses.wgan_gp_discriminator(
+            mixed_image = self.gp_images_b,
+            prob_mixed_is_real = self.prob_gp_b_is_real
+        )
+        
+        d_loss_A = d_vanilla_loss_A + d_gp_A
+        d_loss_B = d_vanilla_loss_B + d_gp_B
+        
         optimizer = tf.train.AdamOptimizer(self.learning_rate, beta1=0.5)
 
         self.model_vars = tf.trainable_variables()
@@ -443,7 +460,7 @@ def main(to_train, log_dir, config_filename, checkpoint_dir, skip):
 
     lambda_a = float(config['_LAMBDA_A']) if '_LAMBDA_A' in config else 10.0
     lambda_b = float(config['_LAMBDA_B']) if '_LAMBDA_B' in config else 10.0
-    pool_size = int(config['pool_size']) if 'pool_size' in config else 50
+    pool_size = int(config['pool_size']) if 'pool_size' in config else 10
 
     to_restore = (to_train == 2)
     base_lr = float(config['base_lr']) if 'base_lr' in config else 0.0002

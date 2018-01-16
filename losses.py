@@ -45,7 +45,7 @@ def lsgan_loss_generator(prob_fake_is_real):
     Returns:
         The total LS-GAN loss.
     """
-    return tf.reduce_mean(tf.squared_difference(prob_fake_is_real, 1))
+    return tf.reduce_mean(-prob_fake_is_real)
 
 
 def lsgan_loss_discriminator(prob_real_is_real, prob_fake_is_real):
@@ -67,5 +67,16 @@ def lsgan_loss_discriminator(prob_real_is_real, prob_fake_is_real):
     Returns:
         The total LS-GAN loss.
     """
-    return (tf.reduce_mean(tf.squared_difference(prob_real_is_real, 1)) +
-            tf.reduce_mean(tf.squared_difference(prob_fake_is_real, 0))) * 0.5
+    return (tf.reduce_mean(-prob_real_is_real) + tf.reduce_mean(prob_fake_is_real))
+    
+def wgan_gp_discriminator(mixed_image, prob_mixed_is_real):
+    """Computes the WGAN-GP gradient penalty that is later added to the discriminatior loss.
+    
+    https://arxiv.org/pdf/1704.00028.pdf
+    """
+    ddx = tf.gradients(prob_mixed_is_real, mixed_image)[0]
+    ddx = tf.sqrt(tf.reduce_sum(tf.square(ddx), axis=1))
+    ddx = tf.reduce_mean(tf.square(ddx - 1.0) * 10)
+    return ddx
+
+
