@@ -26,6 +26,12 @@ def cycle_consistency_loss(real_images, generated_images):
         The cycle consistency loss.
     """
     return tf.reduce_mean(tf.abs(real_images - generated_images))
+	
+def perceptual_loss(real_hidden, generated_hidden):
+    """Compute the perceptual cycle consistency loss,
+	which is the result of a hidden layer activation of the discriminator.
+    """
+    return tf.reduce_mean(tf.abs(real_hidden - generated_hidden))
 
 
 def lsgan_loss_generator(prob_fake_is_real):
