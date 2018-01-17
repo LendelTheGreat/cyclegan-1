@@ -34,36 +34,36 @@ def get_outputs(inputs, network="tensorflow", skip=False):
             current_discriminator = discriminator
             current_generator = build_generator_resnet_9blocks
         elif network == "tensorflow":
-            current_discriminator, disc_layers = discriminator_tf
+            current_discriminator = discriminator_tf
             current_generator = build_generator_resnet_9blocks_tf
         else:
             raise ValueError(
                 'network must be either pytorch or tensorflow'
             )
 
-        prob_real_a_is_real = current_discriminator(images_a, "d_A")
-        prob_real_b_is_real = current_discriminator(images_b, "d_B")
+        prob_real_a_is_real = current_discriminator(images_a, "d_A")[-1]
+        prob_real_b_is_real = current_discriminator(images_b, "d_B")[-1]
 
         fake_images_b = current_generator(images_a, name="g_A", skip=skip)
         fake_images_a = current_generator(images_b, name="g_B", skip=skip)
 
         scope.reuse_variables()
 
-        prob_fake_a_is_real = current_discriminator(fake_images_a, "d_A")
-        prob_fake_b_is_real = current_discriminator(fake_images_b, "d_B")
+        prob_fake_a_is_real = current_discriminator(fake_images_a, "d_A")[-1]
+        prob_fake_b_is_real = current_discriminator(fake_images_b, "d_B")[-1]
 
         cycle_images_a = current_generator(fake_images_b, "g_B", skip=skip)
         cycle_images_b = current_generator(fake_images_a, "g_A", skip=skip)
 
         scope.reuse_variables()
 
-        prob_fake_pool_a_is_real = current_discriminator(fake_pool_a, "d_A")
-        prob_fake_pool_b_is_real = current_discriminator(fake_pool_b, "d_B")
+        prob_fake_pool_a_is_real = current_discriminator(fake_pool_a, "d_A")[-1]
+        prob_fake_pool_b_is_real = current_discriminator(fake_pool_b, "d_B")[-1]
         
-        real_hidden_a = disc_layers[2](images_a, "d_A")
-        cycle_hidden_a = disc_layers[2](cycle_images_a, "d_A")
-        real_hidden_b = disc_layers[2](images_b, "d_B")
-        cycle_hidden_b = disc_layers[2](cycle_images_b, "d_B")
+        real_hidden_a = current_discriminator(images_a, "d_A")[2]
+        cycle_hidden_a = current_discriminator(cycle_images_a, "d_A")[2]
+        real_hidden_b = current_discriminator(images_b, "d_B")[2]
+        cycle_hidden_b = current_discriminator(cycle_images_b, "d_B")[2]
 
     return {
         'prob_real_a_is_real': prob_real_a_is_real,
@@ -215,8 +215,9 @@ def discriminator_tf(inputdisc, name="discriminator"):
         disc_layers.append(o_c2)
         disc_layers.append(o_c3)
         disc_layers.append(o_c4)
+        disc_layers.append(o_c5)
 
-        return o_c5, disc_layers
+        return disc_layers
 
 
 def discriminator(inputdisc, name="discriminator"):

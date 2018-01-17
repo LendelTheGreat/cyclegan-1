@@ -174,8 +174,8 @@ class CycleGAN:
             prob_fake_is_real=self.prob_fake_pool_b_is_real,
         )
         
-        d_loss_A = d_vanilla_loss_A + max(0, self._perc_margin - perc_loss_a)
-        d_loss_B = d_vanilla_loss_B + max(0, self._perc_margin - perc_loss_b)
+        d_loss_A = d_vanilla_loss_A + tf.maximum(self._perc_margin - perc_loss_a, 0)
+        d_loss_B = d_vanilla_loss_B + tf.maximum(self._perc_margin - perc_loss_b, 0)
 
         optimizer = tf.train.AdamOptimizer(self.learning_rate, beta1=0.5)
 
