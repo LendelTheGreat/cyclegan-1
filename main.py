@@ -27,7 +27,7 @@ class CycleGAN:
         current_time = datetime.now().strftime("%Y%m%d-%H%M%S")
 
         self._pool_size = pool_size
-        self._size_before_crop = 286
+        self._size_before_crop = 256
         self._lambda_c_a = lambda_c_a
         self._lambda_c_b = lambda_c_b
         self._lambda_p_a = lambda_p_a
@@ -125,6 +125,11 @@ class CycleGAN:
         self.prob_fake_pool_a_is_real = outputs['prob_fake_pool_a_is_real']
         self.prob_fake_pool_b_is_real = outputs['prob_fake_pool_b_is_real']
         
+        self.gp_images_a = outputs['gp_images_a']
+        self.gp_images_b = outputs['gp_images_b']
+        self.prob_gp_a_is_real = outputs['prob_gp_a_is_real']
+        self.prob_gp_b_is_real = outputs['prob_gp_b_is_real']
+
         self.real_hidden_a = outputs['real_hidden_a']
         self.cycle_hidden_a = outputs['cycle_hidden_a']
         self.real_hidden_b = outputs['real_hidden_b']
@@ -174,9 +179,18 @@ class CycleGAN:
             prob_fake_is_real=self.prob_fake_pool_b_is_real,
         )
         
-        d_loss_A = d_vanilla_loss_A + tf.maximum(self._perc_margin - perc_loss_a, 0)
-        d_loss_B = d_vanilla_loss_B + tf.maximum(self._perc_margin - perc_loss_b, 0)
-
+        d_gp_A = losses.wgan_gp_discriminator(
+            mixed_image = self.gp_images_a,
+            prob_mixed_is_real = self.prob_gp_a_is_real
+        )
+        d_gp_B = losses.wgan_gp_discriminator(
+            mixed_image = self.gp_images_b,
+            prob_mixed_is_real = self.prob_gp_b_is_real
+        )
+        
+        d_loss_A = d_vanilla_loss_A + d_gp_A + tf.maximum(self._perc_margin - perc_loss_a, 0)
+        d_loss_B = d_vanilla_loss_B + d_gp_B + tf.maximum(self._perc_margin - perc_loss_b, 0)
+    
         optimizer = tf.train.AdamOptimizer(self.learning_rate, beta1=0.5)
 
         self.model_vars = tf.trainable_variables()

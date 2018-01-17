@@ -8,15 +8,15 @@ from . import layers
 BATCH_SIZE = 1
 
 # The height of each image.
-IMG_HEIGHT = 256
+IMG_HEIGHT = 128
 
 # The width of each image.
-IMG_WIDTH = 256
+IMG_WIDTH = 128
 
 # The number of color channels per image.
 IMG_CHANNELS = 3
 
-POOL_SIZE = 50
+POOL_SIZE = 10
 ngf = 32
 ndf = 64
 
@@ -60,6 +60,13 @@ def get_outputs(inputs, network="tensorflow", skip=False):
         prob_fake_pool_a_is_real = current_discriminator(fake_pool_a, "d_A")[-1]
         prob_fake_pool_b_is_real = current_discriminator(fake_pool_b, "d_B")[-1]
         
+        eps = tf.random_uniform([], 0.0, 1.0)
+        gp_images_a = eps * images_a + (1-eps) * fake_images_a
+        gp_images_b = eps * images_b + (1-eps) * fake_images_b
+        
+        prob_gp_a_is_real = current_discriminator(gp_images_a, "d_A")[-1]
+        prob_gp_b_is_real = current_discriminator(gp_images_b, "d_B")[-1]
+
         real_hidden_a = current_discriminator(images_a, "d_A")[2]
         cycle_hidden_a = current_discriminator(cycle_images_a, "d_A")[2]
         real_hidden_b = current_discriminator(images_b, "d_B")[2]
@@ -76,6 +83,10 @@ def get_outputs(inputs, network="tensorflow", skip=False):
         'cycle_images_b': cycle_images_b,
         'fake_images_a': fake_images_a,
         'fake_images_b': fake_images_b,
+        'gp_images_a': gp_images_a,
+        'gp_images_b': gp_images_b,
+        'prob_gp_a_is_real': prob_gp_a_is_real,
+        'prob_gp_b_is_real': prob_gp_b_is_real,
         'real_hidden_a': real_hidden_a,
         'cycle_hidden_a': cycle_hidden_a,
         'real_hidden_b': real_hidden_b,
@@ -134,7 +145,7 @@ def build_generator_resnet_9blocks_tf(inputgen, name="generator", skip=False):
             o_r9, [BATCH_SIZE, 128, 128, ngf * 2], ngf * 2, ks, ks, 2, 2, 0.02,
             "SAME", "c4")
         o_c5 = layers.general_deconv2d(
-            o_c4, [BATCH_SIZE, 256, 256, ngf], ngf, ks, ks, 2, 2, 0.02,
+            o_c4, [BATCH_SIZE, 128, 128, ngf], ngf, ks, ks, 2, 2, 0.02,
             "SAME", "c5")
         o_c6 = layers.general_conv2d(o_c5, IMG_CHANNELS, f, f, 1, 1,
                                      0.02, "SAME", "c6",
@@ -177,7 +188,7 @@ def build_generator_resnet_9blocks(inputgen, name="generator", skip=False):
             o_r9, [BATCH_SIZE, 128, 128, ngf * 2], ngf * 2, ks, ks, 2, 2, 0.02,
             "SAME", "c4")
         o_c5 = layers.general_deconv2d(
-            o_c4, [BATCH_SIZE, 256, 256, ngf], ngf, ks, ks, 2, 2, 0.02,
+            o_c4, [BATCH_SIZE, 128, 128, ngf], ngf, ks, ks, 2, 2, 0.02,
             "SAME", "c5")
         o_c6 = layers.general_conv2d(o_c5, IMG_CHANNELS, f, f, 1, 1,
                                      0.02, "SAME", "c6",
