@@ -18,16 +18,21 @@ slim = tf.contrib.slim
 class CycleGAN:
     """The CycleGAN module."""
 
-    def __init__(self, pool_size, lambda_a,
-                 lambda_b, output_root_dir, to_restore,
+    def __init__(self, pool_size,
+                 lambda_c_a, lambda_c_b, lambda_p_a, lambda_p_b,
+                 perc_margin,
+                 output_root_dir, to_restore,
                  base_lr, max_step, network_version,
                  dataset_name, checkpoint_dir, do_flipping, skip):
         current_time = datetime.now().strftime("%Y%m%d-%H%M%S")
 
         self._pool_size = pool_size
         self._size_before_crop = 286
-        self._lambda_a = lambda_a
-        self._lambda_b = lambda_b
+        self._lambda_c_a = lambda_c_a
+        self._lambda_c_b = lambda_c_b
+        self._lambda_p_a = lambda_p_a
+        self._lambda_p_b = lambda_p_b
+        self._perc_margin = perc_margin
         self._output_dir = os.path.join(output_root_dir, current_time)
         self._images_dir = os.path.join(self._output_dir, 'imgs')
         self._num_imgs_to_save = 20
@@ -119,6 +124,11 @@ class CycleGAN:
 
         self.prob_fake_pool_a_is_real = outputs['prob_fake_pool_a_is_real']
         self.prob_fake_pool_b_is_real = outputs['prob_fake_pool_b_is_real']
+        
+        self.real_hidden_a = outputs['real_hidden_a']
+        self.cycle_hidden_a = outputs['cycle_hidden_a']
+        self.real_hidden_b = outputs['real_hidden_b']
+        self.cycle_hidden_b = outputs['cycle_hidden_b']
 
     def compute_losses(self):
         """
@@ -131,30 +141,41 @@ class CycleGAN:
         *_summ -> Summary variables for above loss functions
         """
         cycle_consistency_loss_a = \
-            self._lambda_a * losses.cycle_consistency_loss(
+            self._lambda_c_a * losses.cycle_consistency_loss(
                 real_images=self.input_a, generated_images=self.cycle_images_a,
             )
         cycle_consistency_loss_b = \
-            self._lambda_b * losses.cycle_consistency_loss(
+            self._lambda_c_b * losses.cycle_consistency_loss(
                 real_images=self.input_b, generated_images=self.cycle_images_b,
             )
 
+        perc_loss_a = self._lambda_p_a * losses.perceptual_loss(
+            real_hidden=self.real_hidden_a, generated_hidden=self.cycle_hidden_a,
+        )
+        
+        perc_loss_b = self._lambda_p_b * losses.perceptual_loss(
+            real_hidden=self.real_hidden_b, generated_hidden=self.cycle_hidden_b,
+        )
+            
         lsgan_loss_a = losses.lsgan_loss_generator(self.prob_fake_a_is_real)
         lsgan_loss_b = losses.lsgan_loss_generator(self.prob_fake_b_is_real)
 
         g_loss_A = \
-            cycle_consistency_loss_a + cycle_consistency_loss_b + lsgan_loss_b
+            cycle_consistency_loss_a + cycle_consistency_loss_b + lsgan_loss_b + perc_loss_a + perc_loss_b
         g_loss_B = \
-            cycle_consistency_loss_b + cycle_consistency_loss_a + lsgan_loss_a
+            cycle_consistency_loss_b + cycle_consistency_loss_a + lsgan_loss_a + perc_loss_b + perc_loss_a
 
-        d_loss_A = losses.lsgan_loss_discriminator(
+        d_vanilla_loss_A = losses.lsgan_loss_discriminator(
             prob_real_is_real=self.prob_real_a_is_real,
             prob_fake_is_real=self.prob_fake_pool_a_is_real,
         )
-        d_loss_B = losses.lsgan_loss_discriminator(
+        d_vanilla_loss_B = losses.lsgan_loss_discriminator(
             prob_real_is_real=self.prob_real_b_is_real,
             prob_fake_is_real=self.prob_fake_pool_b_is_real,
         )
+        
+        d_loss_A = d_vanilla_loss_A + tf.maximum(self._perc_margin - perc_loss_a, 0)
+        d_loss_B = d_vanilla_loss_B + tf.maximum(self._perc_margin - perc_loss_b, 0)
 
         optimizer = tf.train.AdamOptimizer(self.learning_rate, beta1=0.5)
 
@@ -441,8 +462,11 @@ def main(to_train, log_dir, config_filename, checkpoint_dir, skip):
     with open(config_filename) as config_file:
         config = json.load(config_file)
 
-    lambda_a = float(config['_LAMBDA_A']) if '_LAMBDA_A' in config else 10.0
-    lambda_b = float(config['_LAMBDA_B']) if '_LAMBDA_B' in config else 10.0
+    lambda_c_a = float(config['_LAMBDA_C_A']) if '_LAMBDA_C_A' in config else 10.0
+    lambda_c_b = float(config['_LAMBDA_C_B']) if '_LAMBDA_C_B' in config else 10.0
+    lambda_p_a = float(config['_LAMBDA_P_A']) if '_LAMBDA_P_A' in config else 10.0
+    lambda_p_b = float(config['_LAMBDA_P_B']) if '_LAMBDA_P_B' in config else 10.0
+    perc_margin = float(config['_PERC_MARGIN']) if '_PERC_MARGIN' in config else 1.0
     pool_size = int(config['pool_size']) if 'pool_size' in config else 50
 
     to_restore = (to_train == 2)
@@ -452,8 +476,8 @@ def main(to_train, log_dir, config_filename, checkpoint_dir, skip):
     dataset_name = str(config['dataset_name'])
     do_flipping = bool(config['do_flipping'])
 
-    cyclegan_model = CycleGAN(pool_size, lambda_a, lambda_b, log_dir,
-                              to_restore, base_lr, max_step, network_version,
+    cyclegan_model = CycleGAN(pool_size, lambda_c_a, lambda_c_b, lambda_p_a, lambda_p_b, perc_margin,
+                              log_dir, to_restore, base_lr, max_step, network_version,
                               dataset_name, checkpoint_dir, do_flipping, skip)
 
     if to_train > 0:
