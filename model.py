@@ -59,11 +59,11 @@ def get_outputs(inputs, network="tensorflow", skip=False):
 
         prob_fake_pool_a_is_real = current_discriminator(fake_pool_a, "d_A")
         prob_fake_pool_b_is_real = current_discriminator(fake_pool_b, "d_B")
-		
-		real_hidden_a = disc_layers[2](images_a, "d_A")
-		cycle_hidden_a = disc_layers[2](cycle_images_a, "d_A")
-		real_hidden_b = disc_layers[2](images_b, "d_B")
-		cycle_hidden_b = disc_layers[2](cycle_images_b, "d_B")
+        
+        real_hidden_a = disc_layers[2](images_a, "d_A")
+        cycle_hidden_a = disc_layers[2](cycle_images_a, "d_A")
+        real_hidden_b = disc_layers[2](images_b, "d_B")
+        cycle_hidden_b = disc_layers[2](cycle_images_b, "d_B")
 
     return {
         'prob_real_a_is_real': prob_real_a_is_real,
@@ -76,10 +76,10 @@ def get_outputs(inputs, network="tensorflow", skip=False):
         'cycle_images_b': cycle_images_b,
         'fake_images_a': fake_images_a,
         'fake_images_b': fake_images_b,
-		'real_hidden_a': real_hidden_a,
-		'cycle_hidden_a': cycle_hidden_a,
-		'real_hidden_b': real_hidden_b,
-		'cycle_hidden_b': cycle_hidden_b,
+        'real_hidden_a': real_hidden_a,
+        'cycle_hidden_a': cycle_hidden_a,
+        'real_hidden_b': real_hidden_b,
+        'cycle_hidden_b': cycle_hidden_b,
     }
 
 
@@ -195,8 +195,8 @@ def discriminator_tf(inputdisc, name="discriminator"):
     with tf.variable_scope(name):
         f = 4
 
-		disc_layers = []
-		
+        disc_layers = []
+        
         o_c1 = layers.general_conv2d(inputdisc, ndf, f, f, 2, 2,
                                      0.02, "SAME", "c1", do_norm=False,
                                      relufactor=0.2)
@@ -210,11 +210,11 @@ def discriminator_tf(inputdisc, name="discriminator"):
             o_c4, 1, f, f, 1, 1, 0.02,
             "SAME", "c5", do_norm=False, do_relu=False
         )
-		
-		disc_layers.append(o_c1)
-		disc_layers.append(o_c2)
-		disc_layers.append(o_c3)
-		disc_layers.append(o_c4)
+        
+        disc_layers.append(o_c1)
+        disc_layers.append(o_c2)
+        disc_layers.append(o_c3)
+        disc_layers.append(o_c4)
 
         return o_c5, disc_layers
 
