@@ -1,0 +1,11 @@
+{
+  "description": "CycleGAN with added perceptual loss", 
+  "dataset_name": "rainy2sunny",
+  "network_version": "tensorflow",
+  "do_flipping": 1,
+  "_LAMBDA_C_A": 4,
+  "_LAMBDA_C_B": 4,
+  "_LAMBDA_P_A": 6,
+  "_LAMBDA_P_B": 6,
+  "_PERC_MARGIN": 1
+}
